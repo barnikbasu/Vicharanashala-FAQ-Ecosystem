@@ -1,0 +1,6 @@
+{
+  "name": "Vicharanashala FAQ Ecosystem",
+  "description": "An intelligent institutional knowledge system and AI-powered FAQ ecosystem for the Vicharanashala Internship Program, featuring query raising, thread resolutions, dashboards, and an AI assistant named Yaksha.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

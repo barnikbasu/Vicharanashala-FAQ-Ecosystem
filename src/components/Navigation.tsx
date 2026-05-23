@@ -52,60 +52,7 @@ export default function Navigation({
   ];
 
   return (
-    <>
-      {/* Platform Role Sandbox Banner */}
-      <div id="sandbox-roles-banner" className="bg-slate-950 border-b border-slate-900 text-xs font-mono py-2.5 px-4 shadow text-slate-300">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-            <span className="text-slate-500 uppercase tracking-wider text-[10px] font-bold">Platform Sandbox Mode:</span>
-            <span className="text-slate-400 font-sans">Simulate active ecosystem viewpoints in real-time</span>
-          </div>
-          <div className="flex items-center flex-wrap gap-2">
-            <button
-              id="role-btn-intern"
-              onClick={() => onUserSwitch("user-1")}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs border transition-all duration-150 ${
-                currentUser.id === "user-1"
-                  ? "bg-sky-500/10 text-sky-400 border-sky-400/40 shadow-sm shadow-sky-500/20 font-bold"
-                  : "bg-slate-900/40 border-slate-800/80 text-slate-500 hover:text-sky-400 hover:bg-slate-800/60"
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser.id === "user-1" ? "bg-sky-400 shadow-[0_0_8px_rgba(56,189,248,1)] animate-ping" : "bg-slate-600"}`}></span>
-              <span>💻 Intern View:</span>
-              <span className="font-sans">{allUsers.find(u => u.id === "user-1")?.name || "Barnik Basu"}</span>
-            </button>
-            <button
-              id="role-btn-mentor"
-              onClick={() => onUserSwitch("user-3")}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs border transition-all duration-150 ${
-                currentUser.id === "user-3"
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-400/40 shadow-sm shadow-emerald-500/20 font-bold"
-                  : "bg-slate-900/40 border-slate-800/80 text-slate-500 hover:text-emerald-400 hover:bg-slate-800/60"
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser.id === "user-3" ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,1)] animate-ping" : "bg-slate-600"}`}></span>
-              <span>👨‍🏫 Mentor View:</span>
-              <span className="font-sans">{allUsers.find(u => u.id === "user-3")?.name || "Dr. Vinayak Sen"}</span>
-            </button>
-            <button
-              id="role-btn-admin"
-              onClick={() => onUserSwitch("user-4")}
-              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs border transition-all duration-150 ${
-                currentUser.id === "user-4"
-                  ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/40 shadow-sm shadow-indigo-500/20 font-bold"
-                  : "bg-slate-900/40 border-slate-800/80 text-slate-500 hover:text-indigo-450 hover:bg-slate-800/60"
-              }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${currentUser.id === "user-4" ? "bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,1)] animate-ping" : "bg-slate-600"}`}></span>
-              <span>👑 Admin View:</span>
-              <span className="font-sans">{allUsers.find(u => u.id === "user-4")?.name || "Sudarshan Iyengar"}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-slate-100 px-4 py-3 shadow-md">
+    <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-slate-100 px-4 py-3 shadow-md">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Logo and Brand */}
@@ -277,6 +224,5 @@ export default function Navigation({
         </div>
       </div>
     </nav>
-    </>
   );
 }

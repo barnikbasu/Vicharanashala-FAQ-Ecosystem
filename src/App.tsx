@@ -14,14 +14,27 @@ import AdminPanel from "./components/AdminPanel";
 import { User, FAQ, Query, Notification } from "./types";
 import { Sparkles, Terminal, BookOpen, Clock, Users } from "lucide-react";
 
+const DEFAULT_USER: User = {
+  id: "user-1",
+  name: "Aarav Sharma",
+  email: "aarav.sharma@gmail.com",
+  role: "intern",
+  avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+  badges: ["Yaksha Contributor", "Rosetta Chronicler"],
+  points: 340,
+  spurthiPoints: 240,
+  department: "Backend Engineering",
+  joinedAt: "2026-05-01T00:00:00Z"
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>("landing");
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
+  const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_USER]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [queries, setQueries] = useState<Query[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   // Initial Bootstrapping
   const fetchAllData = async (userIdToLoad?: string) => {
@@ -124,18 +137,6 @@ export default function App() {
       console.error(e);
     }
   };
-
-  if (loading || !currentUser) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 space-y-4 text-slate-100">
-        <div className="flex flex-col items-center space-y-3">
-          {/* Subtle spinning circular indicator */}
-          <div className="w-8 h-8 rounded-full border-2 border-slate-800 border-t-sky-400 animate-spin" />
-          <p className="text-xs font-mono tracking-wider text-slate-400 animate-pulse">Preparing Sandbox...</p>
-        </div>
-      </div>
-    );
-  }
 
   // Handle complex sub-tab states for New Query or Thread redirect URLs
   let renderedTab = activeTab;

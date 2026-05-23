@@ -16,8 +16,8 @@ import { Sparkles, Terminal, BookOpen, Clock, Users } from "lucide-react";
 
 const DEFAULT_USER: User = {
   id: "user-1",
-  name: "Aarav Sharma",
-  email: "aarav.sharma@gmail.com",
+  name: "Barnik Basu",
+  email: "barnikbasu@gmail.com",
   role: "intern",
   avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
   badges: ["Yaksha Contributor", "Rosetta Chronicler"],
@@ -89,6 +89,10 @@ export default function App() {
 
   const handleUserSwitch = async (userId: string) => {
     setLoading(true);
+    const selectedUser = allUsers.find(u => u.id === userId);
+    if (selectedUser && selectedUser.role !== "admin" && activeTab === "admin") {
+      setActiveTab("landing");
+    }
     await fetchAllData(userId);
   };
 

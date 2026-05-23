@@ -52,7 +52,45 @@ export default function Navigation({
   ];
 
   return (
-    <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-slate-100 px-4 py-3 shadow-md">
+    <>
+      {/* Platform Role Sandbox Banner */}
+      <div id="sandbox-roles-banner" className="bg-slate-950 border-b border-slate-900 text-xs font-mono py-2.5 px-4 shadow text-slate-300">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-3">
+          <div className="flex items-center space-x-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+            <span className="text-slate-500 uppercase tracking-wider text-[10px] font-bold">Platform Sandbox Mode:</span>
+            <span className="text-slate-400 font-sans">Simulate active ecosystem viewpoints in real-time</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              id="role-btn-intern"
+              onClick={() => onUserSwitch("user-1")}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs border transition-all duration-150 ${
+                currentUser.id === "user-1"
+                  ? "bg-sky-500/10 text-sky-400 border-sky-400/30 font-bold"
+                  : "bg-slate-900/40 border-slate-800 text-slate-500 hover:text-slate-350 hover:bg-slate-800/60"
+              }`}
+            >
+              <span>💻 Intern View:</span>
+              <span className="font-sans">{allUsers.find(u => u.id === "user-1")?.name || "Barnik Basu"}</span>
+            </button>
+            <button
+              id="role-btn-admin"
+              onClick={() => onUserSwitch("user-4")}
+              className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-xs border transition-all duration-150 ${
+                currentUser.id === "user-4"
+                  ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/30 font-bold"
+                  : "bg-slate-900/40 border-slate-800 text-slate-500 hover:text-indigo-400 hover:bg-slate-800/60"
+              }`}
+            >
+              <span>👑 Admin View:</span>
+              <span className="font-sans">{allUsers.find(u => u.id === "user-4")?.name || "Sudarshan Iyengar"}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <nav className="sticky top-0 z-50 bg-slate-900 border-b border-slate-800 text-slate-100 px-4 py-3 shadow-md">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         
         {/* Logo and Brand */}
@@ -115,7 +153,7 @@ export default function Navigation({
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs border border-slate-700/80 transition-all font-mono"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 text-sky-400" />
-              <span className="capitalize">{currentUser.role} View</span>
+              <span className="capitalize">{currentUser.role === 'intern' ? 'Intern' : currentUser.role === 'admin' ? 'Admin' : 'Mentor'} View</span>
             </button>
 
             {showRoleMenu && (
@@ -138,7 +176,7 @@ export default function Navigation({
                       <img src={u.avatar} alt="" className="w-6 h-6 rounded-full border border-slate-700" />
                       <div>
                         <div className="font-medium text-slate-200">{u.name}</div>
-                        <div className="text-[10px] font-mono text-slate-400 uppercase">{u.role}</div>
+                        <div className="text-[10px] font-mono text-slate-400 uppercase">{u.role === 'intern' ? 'Intern View' : u.role === 'admin' ? 'Admin View' : 'Mentor View'}</div>
                       </div>
                     </div>
                   </button>
@@ -217,12 +255,13 @@ export default function Navigation({
             />
             <div className="hidden lg:block text-left text-xs">
               <span className="block text-slate-200 font-semibold leading-none">{currentUser.name}</span>
-              <span className="text-[10px] text-slate-500 font-mono leading-none capitalize">{currentUser.role}</span>
+              <span className="text-[10px] text-slate-500 font-mono leading-none capitalize">{currentUser.role === 'intern' ? 'Intern View' : currentUser.role === 'admin' ? 'Admin View' : 'Mentor View'}</span>
             </div>
           </div>
 
         </div>
       </div>
     </nav>
+    </>
   );
 }

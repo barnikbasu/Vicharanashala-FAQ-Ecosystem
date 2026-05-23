@@ -74,14 +74,19 @@ export default function App() {
     }
   };
 
+  // Use a ref to always access the latest active user ID in the auto-refresh background interval
+  const activeUserIdRef = React.useRef(currentUser.id);
+  
+  useEffect(() => {
+    activeUserIdRef.current = currentUser.id;
+  }, [currentUser.id]);
+
   useEffect(() => {
     fetchAllData();
     
     // Simple 10 second auto-refresh loops to implement real-time forum updates safely
     const interval = setInterval(() => {
-      if (currentUser) {
-        fetchAllData(currentUser.id);
-      }
+      fetchAllData(activeUserIdRef.current);
     }, 10000);
 
     return () => clearInterval(interval);
@@ -90,8 +95,12 @@ export default function App() {
   const handleUserSwitch = async (userId: string) => {
     setLoading(true);
     const selectedUser = allUsers.find(u => u.id === userId);
-    if (selectedUser && selectedUser.role !== "admin" && activeTab === "admin") {
-      setActiveTab("landing");
+    if (selectedUser) {
+      if (selectedUser.role === "admin") {
+        setActiveTab("admin");
+      } else if (activeTab === "admin") {
+        setActiveTab("landing");
+      }
     }
     await fetchAllData(userId);
   };

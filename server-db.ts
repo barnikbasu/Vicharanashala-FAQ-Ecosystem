@@ -13,8 +13,8 @@ const DB_FILE_PATH = path.join(process.cwd(), "db.json");
 const MOCK_USERS: User[] = [
   {
     id: "user-1",
-    name: "Aarav Sharma",
-    email: "aarav.sharma@gmail.com",
+    name: "Barnik Basu",
+    email: "barnikbasu@gmail.com",
     role: "intern",
     avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
     badges: ["Yaksha Contributor", "Rosetta Chronicler"],
@@ -49,8 +49,8 @@ const MOCK_USERS: User[] = [
   },
   {
     id: "user-4",
-    name: "Barnik Basu",
-    email: "barnikbasu@gmail.com",
+    name: "Sudarshan Iyengar",
+    email: "sudarshan.iyengar@vicharanashala.ai",
     role: "admin",
     avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150",
     badges: ["Root Administrator", "Vibe Architect"],
@@ -223,7 +223,7 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
     id: "log-1",
     timestamp: "2026-05-23T06:00:00Z",
     action: "PROMPT_UPDATE",
-    user: "Barnik Basu (Admin)",
+    user: "Sudarshan Iyengar (Admin)",
     details: "Updated Yaksha core system instructions, reinforcing citation compliance."
   },
   {
@@ -237,8 +237,8 @@ const INITIAL_AUDIT_LOGS: AuditLog[] = [
     id: "log-3",
     timestamp: "2026-05-21T14:10:00Z",
     action: "USER_PROMOTED",
-    user: "Barnik Basu (Admin)",
-    details: "Promoted Aarav Sharma with badge 'Yaksha Contributor' for active forum support."
+    user: "Sudarshan Iyengar (Admin)",
+    details: "Promoted Barnik Basu with badge 'Yaksha Contributor' for active forum support."
   }
 ];
 

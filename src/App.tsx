@@ -15,20 +15,20 @@ import { User, FAQ, Query, Notification } from "./types";
 import { Sparkles, Terminal, BookOpen, Clock, Users } from "lucide-react";
 
 const DEFAULT_USER: User = {
-  id: "user-1",
-  name: "Barnik Basu",
-  email: "barnikbasu@gmail.com",
-  role: "intern",
-  avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
-  badges: ["Yaksha Contributor", "Rosetta Chronicler"],
-  points: 340,
-  spurthiPoints: 240,
-  department: "Backend Engineering",
-  joinedAt: "2026-05-01T00:00:00Z"
+  id: "user-4",
+  name: "Sudarshan Iyengar",
+  email: "sudarshan.iyengar@vicharanashala.ai",
+  role: "admin",
+  avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150",
+  badges: ["Root Administrator", "Vibe Architect"],
+  points: 9999,
+  spurthiPoints: 5000,
+  department: "Program Leadership",
+  joinedAt: "2024-01-01T00:00:00Z"
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<string>("landing");
+  const [activeTab, setActiveTab] = useState<string>("admin");
   const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
   const [allUsers, setAllUsers] = useState<User[]>([DEFAULT_USER]);
   const [faqs, setFaqs] = useState<FAQ[]>([]);
@@ -54,7 +54,7 @@ export default function App() {
       const jUsers = await rUsers.json();
       if (jUsers.success) {
         setAllUsers(jUsers.users);
-        const activeId = userIdToLoad || jUsers.users[0]?.id || "user-1";
+        const activeId = userIdToLoad || activeUserIdRef.current || "user-4";
         
         // Load target current user context
         const rMe = await fetch(`/api/auth/me?userId=${activeId}`);

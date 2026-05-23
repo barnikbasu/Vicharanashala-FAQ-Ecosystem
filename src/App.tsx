@@ -128,14 +128,10 @@ export default function App() {
   if (loading || !currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 space-y-4 text-slate-100">
-        <div className="relative p-3 rounded-full bg-slate-900 border border-slate-800 animate-pulse">
-          <Sparkles className="w-8 h-8 text-sky-400" />
-        </div>
-        <div className="text-center space-y-1.5">
-          <h2 className="text-sm font-bold font-mono tracking-wider text-slate-200">BOOTSTRAPPING MERN ECOSYSTEM</h2>
-          <p className="text-[11px] text-slate-550 max-w-sm leading-normal">
-            Synching local SQLite index buffers, loading Yaksha system parameters, and mounting RAG model structures...
-          </p>
+        <div className="flex flex-col items-center space-y-3">
+          {/* Subtle spinning circular indicator */}
+          <div className="w-8 h-8 rounded-full border-2 border-slate-800 border-t-sky-400 animate-spin" />
+          <p className="text-xs font-mono tracking-wider text-slate-400 animate-pulse">Preparing Sandbox...</p>
         </div>
       </div>
     );

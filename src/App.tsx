@@ -96,6 +96,7 @@ export default function App() {
     setLoading(true);
     const selectedUser = allUsers.find(u => u.id === userId);
     if (selectedUser) {
+      setCurrentUser(selectedUser);
       if (selectedUser.role === "admin") {
         setActiveTab("admin");
       } else if (activeTab === "admin") {

@@ -26,11 +26,10 @@ Instead of a standard CRUD app or static lists, this platform acts as an intelli
 When interns enter a title inside the home screen, Yaksha triggers an immediate semantic screening request. It maps the query against all verified FAQ articles and solved tickets, showing if a matching response already exists—preventing ticket duplicates.
 
 ### 2. Live Notifications & simulated Role-Switching
-Simulation menus allow testing the platform through 4 distinct roles:
-1. **Aarav Sharma (Intern - Backend)**: Can raise questions, upvote threads, talk to Yaksha.
-2. **Ananya Iyer (Intern - AI Research)**: Contributes to other interns' tickets.
-3. **Dr. Vinayak Sen (Mentor)**: Self-assigns open queries, reviews suggestions, and places official verification checkmarks on correct responses.
-4. **Barnik Basu (Admin)**: Access to audit trails, system prompts configurations, and model temperature sliders.
+Simulation menus allow testing the platform through 3 distinct roles:
+1. **Barnik Basu (Intern - Backend)**: Can raise questions, upvote threads, talk to Yaksha.
+2. **Dr. Vinayak Sen (Mentor)**: Self-assigns open queries, reviews suggestions, and places official verification checkmarks on correct responses.
+3. **Sudarshan Iyengar (Admin)**: Access to audit trails, system prompts configurations, and model temperature sliders.
 
 ### 3. Voice Simulation Input & File Zones
 Interns can click the **Voice Dictation** button inside the form, which simulates natural speech processing, and attach docker files or stacktraces using high-fidelity upload dropzones.

@@ -5,7 +5,16 @@
 
 import fs from "fs";
 import path from "path";
+import mongoose from "mongoose";
 import { User, Query, Answer, FAQ, Notification, SystemPromptConfig, AuditLog, AnalyticsSummary } from "./src/types";
+import {
+  MongoUserModel,
+  MongoFAQModel,
+  MongoQueryModel,
+  MongoNotificationModel,
+  MongoSystemPromptConfigModel,
+  MongoAuditLogModel
+} from "./server-models";
 
 const DB_FILE_PATH = path.join(process.cwd(), "db.json");
 
@@ -286,6 +295,78 @@ export class ServerDB {
       notifications: INITIAL_NOTIFICATIONS
     };
     this.load();
+    this.connectAndSyncMongodb();
+  }
+
+  async connectAndSyncMongodb() {
+    const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URL;
+    if (!mongoUri) {
+      console.log("No MONGODB_URI found. Operating in local JSON storage mode.");
+      return;
+    }
+    try {
+      console.log("Attempting connection to MongoDB Atlas or local instance...");
+      await mongoose.connect(mongoUri);
+      console.log("MongoDB connected successfully! Synchronizing system collections...");
+
+      // 1. Synchronize Users
+      const userCount = await MongoUserModel.countDocuments();
+      if (userCount === 0) {
+        console.log("Seeding default Users to MongoDB...");
+        await MongoUserModel.insertMany(MOCK_USERS);
+      }
+      const mongoUsers = await MongoUserModel.find().lean();
+      this.data.users = mongoUsers as any;
+
+      // 2. Synchronize FAQs
+      const faqCount = await MongoFAQModel.countDocuments();
+      if (faqCount === 0) {
+        console.log("Seeding default FAQs to MongoDB...");
+        await MongoFAQModel.insertMany(INITIAL_FAQS);
+      }
+      const mongoFaqs = await MongoFAQModel.find().lean();
+      this.data.faqs = mongoFaqs as any;
+
+      // 3. Synchronize Queries
+      const queryCount = await MongoQueryModel.countDocuments();
+      if (queryCount === 0) {
+        console.log("Seeding default Queries to MongoDB...");
+        await MongoQueryModel.insertMany(INITIAL_QUERIES as any);
+      }
+      const mongoQueries = await MongoQueryModel.find().lean();
+      this.data.queries = mongoQueries as any;
+
+      // 4. Synchronize Prompt Config
+      let promptConfig = await MongoSystemPromptConfigModel.findOne({ id: "yaksha-prompt" } as any);
+      if (!promptConfig) {
+        console.log("Seeding default System Prompt Config to MongoDB...");
+        promptConfig = await MongoSystemPromptConfigModel.create(INITIAL_SYSTEM_PROMPTS);
+      }
+      this.data.promptConfig = promptConfig.toObject() as any;
+
+      // 5. Synchronize Audit Logs
+      const auditCount = await MongoAuditLogModel.countDocuments();
+      if (auditCount === 0) {
+        console.log("Seeding default Audit Logs to MongoDB...");
+        await MongoAuditLogModel.insertMany(INITIAL_AUDIT_LOGS);
+      }
+      const mongoAudits = await MongoAuditLogModel.find().sort({ timestamp: -1 }).limit(100).lean();
+      this.data.auditLogs = mongoAudits as any;
+
+      // 6. Synchronize Notifications
+      const notifCount = await MongoNotificationModel.countDocuments();
+      if (notifCount === 0) {
+        console.log("Seeding default Notifications...");
+        await MongoNotificationModel.insertMany(INITIAL_NOTIFICATIONS);
+      }
+      const mongoNotifs = await MongoNotificationModel.find().sort({ createdAt: -1 }).lean();
+      this.data.notifications = mongoNotifs as any;
+
+      console.log("MongoDB synchronization complete! Cache updated.");
+      this.save();
+    } catch (e) {
+      console.error("Failed to connect or synchronize with MongoDB, using cached JSON fallback.", e);
+    }
   }
 
   private load() {
@@ -337,6 +418,20 @@ export class ServerDB {
         user.badges.push(badgeToAdd);
       }
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoUserModel.updateOne(
+          { id },
+          { 
+            $set: { 
+              points: user.points, 
+              spurthiPoints: user.spurthiPoints,
+              badges: user.badges 
+            } 
+          }
+        ).catch(e => console.error("Error syncing User points to MongoDB:", e));
+      }
     }
   }
 
@@ -360,6 +455,12 @@ export class ServerDB {
     };
     this.data.faqs.push(newFaq);
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoFAQModel.create(newFaq).catch(e => console.error("Error saving FAQ to MongoDB:", e));
+    }
+
     return newFaq;
   }
 
@@ -369,6 +470,14 @@ export class ServerDB {
       if (helpful) faq.helpfulCount++;
       else faq.unhelpfulCount++;
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoFAQModel.updateOne(
+          { id },
+          { $set: { helpfulCount: faq.helpfulCount, unhelpfulCount: faq.unhelpfulCount } }
+        ).catch(e => console.error("Error saving FAQ vote to MongoDB:", e));
+      }
     }
   }
 
@@ -377,6 +486,14 @@ export class ServerDB {
     if (faq) {
       faq.views++;
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoFAQModel.updateOne(
+          { id },
+          { $set: { views: faq.views } }
+        ).catch(e => console.error("Error saving FAQ views to MongoDB:", e));
+      }
     }
   }
 
@@ -409,6 +526,12 @@ export class ServerDB {
     // Auto points for raising a query
     this.updateUserPoints(authorId, 10);
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoQueryModel.create(newQuery).catch(e => console.error("Error saving Query to MongoDB:", e));
+    }
+
     return newQuery;
   }
 
@@ -431,6 +554,14 @@ export class ServerDB {
         );
       }
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id },
+          { $set: { status, resolvedAt: query.resolvedAt } }
+        ).catch(e => console.error("Error saving Query status to MongoDB:", e));
+      }
     }
   }
 
@@ -448,6 +579,14 @@ export class ServerDB {
         `/query/${query.id}`
       );
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id: queryId },
+          { $set: { assignedMentor: query.assignedMentor, status: query.status } }
+        ).catch(e => console.error("Error saving Query mentor assignment to MongoDB:", e));
+      }
     }
   }
 
@@ -471,6 +610,14 @@ export class ServerDB {
         `Escalated query '${query.title}' directly to Mentor: ${mentor.name}`
       );
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id: queryId },
+          { $set: { assignedMentor: query.assignedMentor, status: query.status, difficulty: query.difficulty } }
+        ).catch(e => console.error("Error saving Query escalation to MongoDB:", e));
+      }
     }
   }
 
@@ -506,6 +653,15 @@ export class ServerDB {
     // Award answerer points
     this.updateUserPoints(authorId, isAi ? 0 : 25, "Master Solver");
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoQueryModel.updateOne(
+        { id: queryId },
+        { $push: { answers: answer } }
+      ).catch(e => console.error("Error saving Answer to MongoDB:", e));
+    }
+
     return answer;
   }
 
@@ -525,6 +681,14 @@ export class ServerDB {
           mentor ? mentor.name : "System",
           `Verified answer to query: "${query.title}"`
         );
+
+        // MERN/MongoDB synchronization
+        if (mongoose.connection.readyState === 1) {
+          MongoQueryModel.updateOne(
+            { id: queryId },
+            { $set: { answers: query.answers, status: query.status, resolvedAt: query.resolvedAt } }
+          ).catch(e => console.error("Error saving verified answer inside Query in MongoDB:", e));
+        }
       }
     }
   }
@@ -539,6 +703,14 @@ export class ServerDB {
         query.upvotes.push(userId);
       }
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id: queryId },
+          { $set: { upvotes: query.upvotes } }
+        ).catch(e => console.error("Error voting Query on MongoDB:", e));
+      }
     }
   }
 
@@ -554,6 +726,14 @@ export class ServerDB {
           ans.upvotes.push(userId);
         }
         this.save();
+
+        // MERN/MongoDB synchronization
+        if (mongoose.connection.readyState === 1) {
+          MongoQueryModel.updateOne(
+            { id: queryId },
+            { $set: { answers: query.answers } }
+          ).catch(e => console.error("Error voting Answer on MongoDB:", e));
+        }
       }
     }
   }
@@ -563,6 +743,14 @@ export class ServerDB {
     if (query) {
       query.views++;
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id },
+          { $set: { views: query.views } }
+        ).catch(e => console.error("Error saving Query views to MongoDB:", e));
+      }
     }
   }
 
@@ -571,6 +759,14 @@ export class ServerDB {
     if (query) {
       query.aiSummary = summary;
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoQueryModel.updateOne(
+          { id: queryId },
+          { $set: { aiSummary: summary } }
+        ).catch(e => console.error("Error saving Query AI summary to MongoDB:", e));
+      }
     }
   }
 
@@ -589,6 +785,14 @@ export class ServerDB {
     };
     this.createAuditLog("PROMPT_UPDATE", manager, `System prompts and AI temperatures calibrated.`);
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoSystemPromptConfigModel.updateOne(
+        { id: "yaksha-prompt" },
+        { $set: { systemInstruction, temperature, model, updatedAt: this.data.promptConfig.updatedAt } }
+      ).catch(e => console.error("Error saving Prompt Config to MongoDB:", e));
+    }
   }
 
   // Audit Logs
@@ -607,6 +811,11 @@ export class ServerDB {
     this.data.auditLogs.unshift(log);
     if (this.data.auditLogs.length > 100) this.data.auditLogs.pop(); // keep log buffer manageable
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoAuditLogModel.create(log).catch(e => console.error("Error saving Audit Log to MongoDB:", e));
+    }
   }
 
   // Notifications
@@ -627,6 +836,11 @@ export class ServerDB {
     };
     this.data.notifications.unshift(notif);
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoNotificationModel.create(notif).catch(e => console.error("Error saving Notification to MongoDB:", e));
+    }
   }
 
   markNotificationAsRead(id: string) {
@@ -634,6 +848,14 @@ export class ServerDB {
     if (notif) {
       notif.read = true;
       this.save();
+
+      // MERN/MongoDB synchronization
+      if (mongoose.connection.readyState === 1) {
+        MongoNotificationModel.updateOne(
+          { id },
+          { $set: { read: true } }
+        ).catch(e => console.error("Error reading Notification on MongoDB:", e));
+      }
     }
   }
 
@@ -642,6 +864,14 @@ export class ServerDB {
       if (n.userId === userId) n.read = true;
     });
     this.save();
+
+    // MERN/MongoDB synchronization
+    if (mongoose.connection.readyState === 1) {
+      MongoNotificationModel.updateMany(
+        { userId },
+        { $set: { read: true } }
+      ).catch(e => console.error("Error syncing read status to MongoDB:", e));
+    }
   }
 
   // Diagnostics & Dashboard Analytics

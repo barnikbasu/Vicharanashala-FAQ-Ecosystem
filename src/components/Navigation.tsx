@@ -15,7 +15,9 @@ import {
   Layers, 
   Tv, 
   Sparkles,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Menu,
+  X
 } from "lucide-react";
 
 interface NavigationProps {
@@ -39,6 +41,7 @@ export default function Navigation({
 }: NavigationProps) {
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const unreadNotifications = notifications.filter(n => !n.read);
 

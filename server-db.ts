@@ -123,7 +123,7 @@ const INITIAL_FAQS: FAQ[] = [
     question: "What details stand inside the Visakha-MCP repository?",
     answer: "The `visakha-mcp` repo is Vicharanashala's Model Context Protocol (MCP) server. It hosts structured custom tools connecting AI agents seamlessly to SQLite indices, local data buffers, and prompt templates, allowing developers to execute vibe coding over standard datasets.",
     category: "Technical Stack",
-    tags: ["visakha-mcp", "Github", "MCP"],
+    tags: ["visakha-mcp", "Github", "MCP", "SQLite", "AI Agents", "Prompt Templates", "Vibe Coding"],
     views: 410,
     helpfulCount: 39,
     unhelpfulCount: 0,

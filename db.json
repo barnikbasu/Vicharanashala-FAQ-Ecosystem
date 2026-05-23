@@ -16,6 +16,21 @@
       "joinedAt": "2026-05-01T00:00:00Z"
     },
     {
+      "id": "user-2",
+      "name": "Ananya Iyer",
+      "email": "ananya.iyer@gmail.com",
+      "role": "intern",
+      "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
+      "badges": [
+        "Fast Responder",
+        "Vibe LMS Champ"
+      ],
+      "points": 480,
+      "spurthiPoints": 300,
+      "department": "AI & Systems Reserch",
+      "joinedAt": "2026-05-01T00:00:00Z"
+    },
+    {
       "id": "user-3",
       "name": "Dr. Vinayak Sen",
       "email": "vinayak.sen@vicharanashala.ai",
@@ -172,18 +187,18 @@
           "queryId": "q-1",
           "content": "This is a common folder permission error. Ensure you run `chmod -R 777 ./sqlite-data` or change the root path mounting inside the `docker-compose.yml` block from `rw` constraints. Under Windows, WSL can occasionally block file mounts from host directory directories.",
           "author": {
-            "id": "user-1",
-            "name": "Barnik Basu",
-            "email": "barnikbasu@gmail.com",
+            "id": "user-2",
+            "name": "Ananya Iyer",
+            "email": "ananya.iyer@gmail.com",
             "role": "intern",
-            "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+            "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
             "badges": [
-              "Yaksha Contributor",
-              "Rosetta Chronicler"
+              "Fast Responder",
+              "Vibe LMS Champ"
             ],
-            "points": 340,
-            "spurthiPoints": 240,
-            "department": "Backend Engineering",
+            "points": 480,
+            "spurthiPoints": 300,
+            "department": "AI & Systems Reserch",
             "joinedAt": "2026-05-01T00:00:00Z"
           },
           "isMentorVerified": false,
@@ -195,7 +210,7 @@
         }
       ],
       "upvotes": [
-        "user-1"
+        "user-2"
       ],
       "views": 45
     },
@@ -210,18 +225,18 @@
         "Administration"
       ],
       "author": {
-        "id": "user-1",
-        "name": "Barnik Basu",
-        "email": "barnikbasu@gmail.com",
+        "id": "user-2",
+        "name": "Ananya Iyer",
+        "email": "ananya.iyer@gmail.com",
         "role": "intern",
-        "avatar": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+        "avatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
         "badges": [
-          "Yaksha Contributor",
-          "Rosetta Chronicler"
+          "Fast Responder",
+          "Vibe LMS Champ"
         ],
-        "points": 340,
-        "spurthiPoints": 240,
-        "department": "Backend Engineering",
+        "points": 480,
+        "spurthiPoints": 300,
+        "department": "AI & Systems Reserch",
         "joinedAt": "2026-05-01T00:00:00Z"
       },
       "assignedMentor": {
@@ -310,7 +325,8 @@
           "isAiGenerated": false,
           "createdAt": "2026-05-21T10:30:00Z",
           "upvotes": [
-            "user-1"
+            "user-1",
+            "user-2"
           ]
         },
         {

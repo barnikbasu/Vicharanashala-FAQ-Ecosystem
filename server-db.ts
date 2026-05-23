@@ -24,18 +24,6 @@ const MOCK_USERS: User[] = [
     joinedAt: "2026-05-01T00:00:00Z"
   },
   {
-    id: "user-2",
-    name: "Ananya Iyer",
-    email: "ananya.iyer@gmail.com",
-    role: "intern",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150",
-    badges: ["Fast Responder", "Vibe LMS Champ"],
-    points: 480,
-    spurthiPoints: 300,
-    department: "AI & Systems Reserch",
-    joinedAt: "2026-05-01T00:00:00Z"
-  },
-  {
     id: "user-3",
     name: "Dr. Vinayak Sen",
     email: "vinayak.sen@vicharanashala.ai",
@@ -147,14 +135,14 @@ const INITIAL_QUERIES: Query[] = [
         id: "ans-1",
         queryId: "q-1",
         content: "This is a common folder permission error. Ensure you run `chmod -R 777 ./sqlite-data` or change the root path mounting inside the `docker-compose.yml` block from `rw` constraints. Under Windows, WSL can occasionally block file mounts from host directory directories.",
-        author: MOCK_USERS[1],
+        author: MOCK_USERS[0],
         isMentorVerified: false,
         isAiGenerated: false,
         createdAt: "2026-05-22T16:00:00Z",
         upvotes: ["user-1"]
       }
     ],
-    upvotes: ["user-2"],
+    upvotes: ["user-1"],
     views: 45
   },
   {
@@ -164,8 +152,8 @@ const INITIAL_QUERIES: Query[] = [
     status: "assigned",
     difficulty: "easy",
     tags: ["Rosetta", "Administration"],
-    author: MOCK_USERS[1],
-    assignedMentor: MOCK_USERS[2],
+    author: MOCK_USERS[0],
+    assignedMentor: MOCK_USERS[1],
     createdAt: "2026-05-22T09:12:00Z",
     answers: [],
     upvotes: [],
@@ -179,7 +167,7 @@ const INITIAL_QUERIES: Query[] = [
     difficulty: "hard",
     tags: ["Yaksha", "Prompt Engineering"],
     author: MOCK_USERS[0],
-    assignedMentor: MOCK_USERS[2],
+    assignedMentor: MOCK_USERS[1],
     createdAt: "2026-05-20T11:00:00Z",
     resolvedAt: "2026-05-21T18:00:00Z",
     answers: [
@@ -187,24 +175,24 @@ const INITIAL_QUERIES: Query[] = [
         id: "ans-2",
         queryId: "q-3",
         content: "The best practice is combining them systematically inside a single instructions configuration. On our Admin panel, you can use structured section wrappers (e.g. `### Role Play` followed by `### Guidelines`). It makes retrieval context clean.",
-        author: MOCK_USERS[2],
+        author: MOCK_USERS[1],
         isMentorVerified: true,
         isAiGenerated: false,
         createdAt: "2026-05-21T10:30:00Z",
-        upvotes: ["user-1", "user-2"]
+        upvotes: ["user-1"]
       },
       {
         id: "ans-3",
         queryId: "q-3",
         content: "Here is an AI draft summary: Combining files programmatically or creating dynamic chunk loaders serves the Yaksha schema well. Keep context size under 8k tokens to lower inference costs.",
-        author: MOCK_USERS[3], // Admin
+        author: MOCK_USERS[2], // Admin
         isMentorVerified: false,
         isAiGenerated: true,
         createdAt: "2026-05-21T11:00:00Z",
         upvotes: []
       }
     ],
-    upvotes: ["user-3"],
+    upvotes: ["user-1"],
     views: 74,
     aiSummary: "Resolves the method to merge system blueprints. Recommend combining them cleanly with labeled markdown blocks."
   }
@@ -255,7 +243,7 @@ const INITIAL_NOTIFICATIONS: Notification[] = [
   },
   {
     id: "notif-2",
-    userId: "user-2",
+    userId: "user-1",
     title: "System Notification",
     content: "Coursework Module 4 on ViBe Platform is now live. Complete updates on your daily Rosetta log.",
     type: "system",

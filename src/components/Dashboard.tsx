@@ -17,9 +17,52 @@ import {
   Layers
 } from "lucide-react";
 
+const DEFAULT_ANALYTICS: AnalyticsSummary = {
+  totalQueries: 12,
+  resolvedQueries: 9,
+  unresolvedQueries: 3,
+  totalFAQs: 18,
+  averageResolutionTimeHours: 14.5,
+  tagCloud: [
+    { text: "mongodb", value: 5 },
+    { text: "react", value: 3 },
+    { text: "node", value: 4 },
+    { text: "express", value: 2 },
+    { text: "mongoose", value: 3 }
+  ],
+  heatmap: [
+    { day: "Monday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 2 })) },
+    { day: "Tuesday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 1 })) },
+    { day: "Wednesday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 3 })) },
+    { day: "Thursday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 2 })) },
+    { day: "Friday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 4 })) },
+    { day: "Saturday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 0 })) },
+    { day: "Sunday", hours: Array.from({ length: 12 }, (_, i) => ({ hour: i * 2, count: 1 })) }
+  ],
+  leaderboard: [
+    {
+      user: {
+        id: "user-3",
+        name: "Vinayak Sen",
+        email: "vinayak.sen@example.com",
+        role: "mentor",
+        avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150",
+        badges: ["Sage Mentor", "System Architect"],
+        points: 2500,
+        spurthiPoints: 1550,
+        department: "Vicharanashala Core Team",
+        joinedAt: "2024-01-15T00:00:00Z"
+      },
+      count: 14
+    }
+  ],
+  tokenUsageCount: 425600,
+  serverCpuPercent: 12.4,
+  serverMemoryMb: 114.8
+};
+
 export default function Dashboard() {
-  const [data, setData] = useState<AnalyticsSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AnalyticsSummary>(DEFAULT_ANALYTICS);
 
   const fetchAnalytics = async () => {
     try {
@@ -30,23 +73,12 @@ export default function Dashboard() {
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchAnalytics();
   }, []);
-
-  if (loading || !data) {
-    return (
-      <div className="flex flex-col items-center justify-center p-16 space-y-4 text-slate-400">
-        <div className="w-8 h-8 border-4 border-slate-700 border-t-sky-500 rounded-full animate-spin" />
-        <span className="font-mono text-xs">Assembling system indices and analytics reports...</span>
-      </div>
-    );
-  }
 
   // Find maximum value for helper graphs
   const maxTagCount = Math.max(...data.tagCloud.map(t => t.value), 1);

@@ -11,8 +11,12 @@ import QueryForum from "./components/QueryForum";
 import YakshaChat from "./components/YakshaChat";
 import Dashboard from "./components/Dashboard";
 import AdminPanel from "./components/AdminPanel";
+import InternFlow from "./components/InternFlow";
 import { User, FAQ, Query, Notification } from "./types";
 import { Sparkles, Terminal, BookOpen, Clock, Users } from "lucide-react";
+import { setupFetchIntercept } from "./utils/mockApi";
+
+setupFetchIntercept();
 
 const BOOTSTRAP_USERS: User[] = [
   {
@@ -226,8 +230,10 @@ export default function App() {
     // 1. FAQs
     try {
       const rFaqs = await fetch("/api/faqs");
-      const jFaqs = await rFaqs.json();
-      if (jFaqs.success) setFaqs(jFaqs.faqs);
+      if (rFaqs.ok) {
+        const jFaqs = await rFaqs.json();
+        if (jFaqs.success) setFaqs(jFaqs.faqs);
+      }
     } catch (e) {
       console.log("Using static FAQs fallback.");
     }
@@ -235,34 +241,49 @@ export default function App() {
     // 2. Forum Queries
     try {
       const rQueries = await fetch("/api/queries");
-      const jQueries = await rQueries.json();
-      if (jQueries.success) setQueries(jQueries.queries);
+      if (rQueries.ok) {
+        const jQueries = await rQueries.json();
+        if (jQueries.success) setQueries(jQueries.queries);
+      }
     } catch (e) {
       console.log("Using static Queries fallback.");
     }
 
-    // 3. User lists
+    // 3. User lists and Active Identity Sync
+    let fallbackToLocalMe = true;
     try {
       const rUsers = await fetch("/api/auth/users");
-      const jUsers = await rUsers.json();
-      if (jUsers.success) {
-        setAllUsers(jUsers.users);
-        const activeId = userIdToLoad || activeUserIdRef.current || "user-4";
-        
-        // Load target current user context
-        const rMe = await fetch(`/api/auth/me?userId=${activeId}`);
-        const jMe = await rMe.json();
-        if (jMe.success) {
-          setCurrentUser(jMe.user);
-          // Trigger notifications load
-          const rNotif = await fetch(`/api/notifications/${activeId}`);
-          const jNotif = await rNotif.json();
-          if (jNotif.success) setNotifications(jNotif.notifications);
+      if (rUsers.ok) {
+        const jUsers = await rUsers.json();
+        if (jUsers.success) {
+          setAllUsers(jUsers.users);
+          const activeId = userIdToLoad || activeUserIdRef.current || "user-4";
+          
+          const rMe = await fetch(`/api/auth/me?userId=${activeId}`);
+          if (rMe.ok) {
+            const jMe = await rMe.json();
+            if (jMe.success) {
+              setCurrentUser(jMe.user);
+              fallbackToLocalMe = false;
+              
+              const rNotif = await fetch(`/api/notifications/${activeId}`);
+              if (rNotif.ok) {
+                const jNotif = await rNotif.json();
+                if (jNotif.success) setNotifications(jNotif.notifications);
+              }
+            }
+          }
         }
       }
     } catch (e) {
       console.log("Using static Users / Notifications fallback.");
     } finally {
+      if (fallbackToLocalMe && userIdToLoad) {
+        const localMe = BOOTSTRAP_USERS.find(u => u.id === userIdToLoad);
+        if (localMe) {
+          setCurrentUser(localMe);
+        }
+      }
       setLoading(false);
     }
   };

@@ -49,11 +49,16 @@ export default function QueryForum({
   // Listing page filter state
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [tagFilter, setTagFilter] = useState<string>("All");
+  const [urgencyFilter, setUrgencyFilter] = useState<string>("All");
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"latest" | "upvotes" | "views">("latest");
 
   // Raise Query Form state
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newDifficulty, setNewDifficulty] = useState<"easy" | "medium" | "hard">("easy");
+  const [newUrgency, setNewUrgency] = useState<"low" | "medium" | "high" | "critical">("medium");
+  const [newIsAnonymous, setNewIsAnonymous] = useState(false);
   const [newTagsString, setNewTagsString] = useState("");
   const [formAnalyzing, setFormAnalyzing] = useState(false);
   const [draftResult, setDraftResult] = useState<{
@@ -62,6 +67,11 @@ export default function QueryForum({
     rewrittenTitle?: string;
     aiSummary?: string;
   } | null>(null);
+
+  // Manual query merging state
+  const [manualMergePrimary, setManualMergePrimary] = useState<string>("");
+  const [manualMergeSecondary, setManualMergeSecondary] = useState<string>("");
+  const [mergeStatusMsg, setMergeStatusMsg] = useState("");
 
   // Voice simulation state
   const [isRecording, setIsRecording] = useState(false);
@@ -94,11 +104,26 @@ export default function QueryForum({
 
   const uniqueTags = ["All", ...Array.from(new Set(queries.flatMap(q => q.tags)))];
 
-  const filteredQueries = queries.filter(q => {
-    const matchesStatus = statusFilter === "All" || q.status === statusFilter.toLowerCase();
-    const matchesTag = tagFilter === "All" || q.tags.includes(tagFilter);
-    return matchesStatus && matchesTag;
-  });
+  const filteredQueries = queries
+    .filter(q => {
+      const matchesStatus = statusFilter === "All" || q.status === statusFilter.toLowerCase();
+      const matchesTag = tagFilter === "All" || q.tags.includes(tagFilter);
+      const matchesUrgency = urgencyFilter === "All" || (q.urgency || "medium") === urgencyFilter.toLowerCase();
+      const matchesSearch = !searchQuery.trim() || 
+        q.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        q.description.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        q.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchesStatus && matchesTag && matchesUrgency && matchesSearch;
+    })
+    .sort((a, b) => {
+      if (sortBy === "upvotes") {
+        return (b.upvotes?.length || 0) - (a.upvotes?.length || 0);
+      }
+      if (sortBy === "views") {
+        return (b.views || 0) - (a.views || 0);
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   const selectedQuery = queries.find(q => q.id === selectedQueryId);
 
@@ -202,7 +227,9 @@ export default function QueryForum({
           description: newDesc,
           authorId: currentUser.id,
           tags: parsedTags.length > 0 ? parsedTags : ["General"],
-          difficulty: newDifficulty
+          difficulty: newDifficulty,
+          urgency: newUrgency,
+          isAnonymous: newIsAnonymous
         })
       });
       const data = await res.json();
@@ -210,6 +237,8 @@ export default function QueryForum({
         setNewTitle("");
         setNewDesc("");
         setNewTagsString("");
+        setNewUrgency("medium");
+        setNewIsAnonymous(false);
         setAttachedFiles([]);
         setDraftResult(null);
         setForumView("list");
@@ -217,6 +246,35 @@ export default function QueryForum({
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Manual query merging
+  const handleManualGroupMerge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualMergePrimary || !manualMergeSecondary) return;
+    setMergeStatusMsg("Merging duplicate threads...");
+    try {
+      const res = await fetch("/api/queries/merge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          primaryId: manualMergePrimary,
+          secondaryId: manualMergeSecondary,
+          mergedBy: currentUser.name
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMergeStatusMsg("Queries grouped and merged successfully! Redirect link generated.");
+        setManualMergePrimary("");
+        setManualMergeSecondary("");
+        onRefreshQueries();
+      } else {
+        setMergeStatusMsg(`Error: ${data.message}`);
+      }
+    } catch (err: any) {
+      setMergeStatusMsg(`Failed to merge: ${err.message}`);
     }
   };
 
@@ -364,34 +422,132 @@ export default function QueryForum({
           </div>
 
           {/* Quick Stats Filters Bar */}
-          <div className="flex flex-wrap items-center gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-            <span className="text-[10px] font-mono text-slate-400 px-2 uppercase tracking-wide">Status:</span>
-            {["All", "Open", "Assigned", "Resolved"].map(status => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-                  statusFilter === status 
-                    ? "bg-slate-800 text-white font-semibold"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+              
+              {/* Main text search bar */}
+              <div className="md:col-span-1 relative">
+                <input 
+                  type="text"
+                  placeholder="Search title, tags, or details..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 rounded-lg text-xs px-3 py-2 text-slate-100 placeholder-slate-500 focus:outline-none"
+                />
+              </div>
 
-            <span className="h-4 w-[1px] bg-slate-800 hidden sm:inline" />
+              {/* Status checkboxes/buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[9px] font-mono text-slate-500 uppercase">Status:</span>
+                {["All", "Open", "Assigned", "Resolved"].map(status => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-2 py-1 text-[10px] rounded-md transition-colors ${
+                      statusFilter === status 
+                        ? "bg-slate-800 text-sky-400 font-semibold"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
 
-            <span className="text-[10px] font-mono text-slate-400 px-2 uppercase tracking-wide hidden sm:inline">Tags:</span>
-            <select
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="bg-slate-950 border border-slate-800 text-slate-300 text-xs rounded-lg px-2 py-1 max-w-[150px] outline-none"
-            >
-              {uniqueTags.map(tag => (
-                <option key={tag} value={tag}>#{tag}</option>
-              ))}
-            </select>
+              {/* Urgency selectors dropdown */}
+              <div className="flex items-center space-x-2">
+                <span className="text-[9px] font-mono text-slate-500 uppercase">Urgency:</span>
+                <select
+                  value={urgencyFilter}
+                  onChange={(e) => setUrgencyFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-[10px] rounded-md px-2 py-1 outline-none w-full"
+                >
+                  <option value="All">All Urgency</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+
+              {/* Tag and Sorter selector */}
+              <div className="flex items-center space-x-2">
+                <span className="text-[9px] font-mono text-slate-500 uppercase">Sort:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-[10px] rounded-md px-1.5 py-1 outline-none w-1/2"
+                >
+                  <option value="latest">Latest</option>
+                  <option value="upvotes">Upvotes</option>
+                  <option value="views">Reads</option>
+                </select>
+
+                <select
+                  value={tagFilter}
+                  onChange={(e) => setTagFilter(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-slate-300 text-[10px] rounded-md px-1.5 py-1 outline-none w-1/2"
+                >
+                  {uniqueTags.map(tag => (
+                    <option key={tag} value={tag}>#{tag}</option>
+                  ))}
+                </select>
+              </div>
+
+            </div>
+
+            {/* Admin & Mentor manual grouping / merge engine */}
+            {(currentUser.role === "admin" || currentUser.role === "mentor") && (
+              <div className="bg-slate-950/80 border border-slate-850 p-4 rounded-xl space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Cpu className="w-4 h-4 text-sky-400" />
+                  <span className="text-xs font-bold text-slate-200 font-sans uppercase tracking-wide">Duplicate Thread Merging Engine</span>
+                </div>
+                <p className="text-[10px] text-slate-400">Combine overlapping intern queries, consolidate tags and link multiple participants to clean the dashboard queue.</p>
+                
+                <form onSubmit={handleManualGroupMerge} className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                  <div>
+                    <label className="block text-[8px] uppercase font-mono text-slate-500 mb-1">Primary Thread (Remains Open)</label>
+                    <select
+                      value={manualMergePrimary}
+                      onChange={(e) => setManualMergePrimary(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 text-slate-300 text-[10px] rounded p-2 outline-none"
+                    >
+                      <option value="">-- Select Thread --</option>
+                      {queries.filter(q => q.status !== "resolved").map(q => (
+                        <option key={q.id} value={q.id}>{q.title.substring(0, 35)}... (ID: {q.id})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[8px] uppercase font-mono text-slate-500 mb-1">Duplicate Thread (Merged & Closed)</label>
+                    <select
+                      value={manualMergeSecondary}
+                      onChange={(e) => setManualMergeSecondary(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 text-slate-300 text-[10px] rounded p-2 outline-none"
+                    >
+                      <option value="">-- Select Duplicate to Close --</option>
+                      {queries.filter(q => q.status !== "resolved" && q.id !== manualMergePrimary).map(q => (
+                        <option key={q.id} value={q.id}>{q.title.substring(0, 35)}... (ID: {q.id})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="bg-sky-600 hover:bg-sky-500 text-white font-mono text-[9px] uppercase font-bold py-2 px-3 rounded tracking-wider transition-all"
+                  >
+                    Bind & Merge Threads
+                  </button>
+                </form>
+
+                {mergeStatusMsg && (
+                  <p className="text-[10px] font-mono text-sky-450 animate-pulse">{mergeStatusMsg}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Discussion List */}
@@ -413,7 +569,7 @@ export default function QueryForum({
                   }}
                 >
                   <div className="space-y-2 flex-1">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded border ${
                         q.status === "open" 
                           ? "bg-sky-950 text-sky-400 border-sky-800/30" 
@@ -427,10 +583,34 @@ export default function QueryForum({
                       <span className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded border border-slate-800 text-slate-400`}>
                         {q.difficulty}
                       </span>
+
+                      {/* Explicit Urgency Indicators */}
+                      <span className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded border ${
+                        (q.urgency || "medium") === "critical" ? "bg-rose-950/80 text-rose-400 border-rose-800/40" :
+                        (q.urgency || "medium") === "high" ? "bg-amber-950/80 text-amber-400 border-amber-800/40" :
+                        (q.urgency || "medium") === "medium" ? "bg-sky-950/60 text-sky-400 border-sky-800/30" :
+                        "bg-slate-950 text-slate-500 border-slate-800/40"
+                      }`}>
+                        {q.urgency || "medium"} Urgency
+                      </span>
+
+                      {/* Display Merged indicator if appropriate */}
+                      {q.duplicateOfId && (
+                        <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded border bg-amber-950/20 text-amber-300 border-amber-800/30 animate-pulse">
+                          Merged Loop 🔗
+                        </span>
+                      )}
+
+                      {q.additionalParticipants && q.additionalParticipants.length > 0 && (
+                        <span className="text-[9px] font-mono uppercase px-2 py-0.5 rounded bg-sky-950/30 text-sky-300 border border-sky-900/40">
+                          Group Thread (+{q.additionalParticipants.length} Interns)
+                        </span>
+                      )}
                     </div>
 
-                    <h3 className="text-sm font-bold text-slate-100 hover:text-sky-450 transition-colors leading-snug">
-                      {q.title}
+                    <h3 className="text-sm font-bold text-slate-100 hover:text-sky-450 transition-colors leading-snug flex items-center space-x-2">
+                      {q.duplicateOfId && <span className="text-xs text-slate-500 line-through">[Closed]</span>}
+                      <span>{q.title}</span>
                     </h3>
 
                     <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
@@ -446,13 +626,29 @@ export default function QueryForum({
                     </div>
                   </div>
 
-                  {/* Metadata and statistics bar */}
+                  {/* Metadata and statistics bar with Anonymity shielding */}
                   <div className="flex items-center justify-between md:justify-end gap-6 pt-3 md:pt-0 border-t md:border-t-0 border-slate-800/50">
                     <div className="flex items-center space-x-2">
-                      <img src={q.author.avatar} className="w-6 h-6 rounded-full border border-slate-750" alt="" />
-                      <div className="text-[10px] text-slate-400">
-                        <span className="block font-semibold leading-none">{q.author.name}</span>
-                        <span className="text-[9px] text-slate-500 font-mono leading-none">
+                      <img 
+                        src={q.isAnonymous ? "https://api.dicebear.com/7.x/identicon/svg?seed=anonymous" : q.author.avatar} 
+                        className="w-6 h-6 rounded-full border border-slate-755" 
+                        alt="" 
+                      />
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        <span className="block font-semibold leading-none text-slate-350">
+                          {q.isAnonymous ? (
+                            (currentUser.role === "admin" || currentUser.role === "mentor") ? (
+                              <span className="text-amber-300 underline cursor-help" title="Anonymized Intern Profile. Displaying only to authorized mentorship roles.">
+                                Anonymous ({q.author.name} 🔑)
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 select-none">Anonymous Intern</span>
+                            )
+                          ) : (
+                            q.author.name
+                          )}
+                        </span>
+                        <span className="text-[9px] text-slate-500 leading-none block mt-0.5">
                           {new Date(q.createdAt).toLocaleDateString()}
                         </span>
                       </div>
@@ -637,6 +833,22 @@ export default function QueryForum({
               </div>
 
               <div>
+                <label className="block text-[10px] uppercase font-mono text-slate-400 mb-1.5">Urgency Level</label>
+                <select
+                  value={newUrgency}
+                  onChange={(e) => setNewUrgency(e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-800 text-slate-100 rounded-xl text-xs px-3.5 py-2.5 outline-none focus:border-sky-500/50"
+                >
+                  <option value="low">Low (General suggestion, enhancement feedback)</option>
+                  <option value="medium">Medium (Standard error blocking task progression)</option>
+                  <option value="high">High (Docker crash or multiple tools locked)</option>
+                  <option value="critical">Critical (Complete project blocks, platform downtime)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
                 <label className="block text-[10px] uppercase font-mono text-slate-400 mb-1.5">Tags (Comma-separated)</label>
                 <input
                   type="text"
@@ -645,6 +857,20 @@ export default function QueryForum({
                   onChange={(e) => setNewTagsString(e.target.value)}
                   className="w-full bg-slate-900 border border-slate-800 text-slate-100 rounded-xl text-xs px-3.5 py-2.5 focus:outline-none focus:border-sky-500/50"
                 />
+              </div>
+
+              <div className="flex items-center space-x-3 bg-slate-900/40 border border-slate-800 p-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="anonymize-chk"
+                  checked={newIsAnonymous}
+                  onChange={(e) => setNewIsAnonymous(e.target.checked)}
+                  className="w-4 h-4 rounded bg-slate-950 border-slate-800 text-sky-500 focus:ring-sky-500"
+                />
+                <label htmlFor="anonymize-chk" className="cursor-pointer select-none">
+                  <span className="block text-[10px] uppercase font-mono text-slate-300">Post Anonymously</span>
+                  <span className="block text-[9px] text-slate-500 leading-none mt-0.5">Hide your name. core team retains backdoor logs.</span>
+                </label>
               </div>
             </div>
           </div>

@@ -72,25 +72,32 @@ export default function Navigation({
 
         {/* Navigation Tabs */}
         <div className="hidden md:flex space-x-1">
-          {navItems.map(item => {
-            if (!item.roles.includes(currentUser.role)) return null;
-            const Icon = item.icon;
-            const isActive = activeTab === item.id || (item.id === "query" && activeTab.startsWith("query-"));
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
-                  isActive
-                    ? "bg-slate-800 text-sky-400 shadow-inner font-medium"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+          {currentUser.role === "intern" ? (
+            <div className="inline-flex items-center space-x-2 px-3 py-2 rounded-lg text-sm bg-sky-950/20 text-sky-400 border border-sky-900/40 font-mono tracking-wide">
+              <Sparkles className="w-4 h-4 text-sky-400 animate-pulse" />
+              <span>Active Intern Workspace Pipeline</span>
+            </div>
+          ) : (
+            navItems.map(item => {
+              if (!item.roles.includes(currentUser.role)) return null;
+              const Icon = item.icon;
+              const isActive = activeTab === item.id || (item.id === "query" && activeTab.startsWith("query-"));
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
+                    isActive
+                      ? "bg-slate-800 text-sky-400 shadow-inner font-medium"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })
+          )}
         </div>
 
         {/* Action Controls & Profile details */}

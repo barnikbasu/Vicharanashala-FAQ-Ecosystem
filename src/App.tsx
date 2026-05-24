@@ -402,52 +402,67 @@ export default function App() {
       {/* Main container holding core modules */}
       <main className="max-w-7xl mx-auto px-4 py-8 md:px-6">
         
-        {renderedTab === "landing" && (
-          <Landing
-            onNavigate={setActiveTab}
-            totalFAQsCount={faqs.length}
-            totalUnresolvedCount={queries.filter(q => q.status !== "resolved").length}
-          />
-        )}
-
-        {renderedTab === "faq" && (
-          <FAQExplorer
+        {currentUser.role === "intern" ? (
+          <InternFlow
             faqs={faqs}
+            queries={queries}
             currentUser={currentUser}
             onVote={handleFAQVote}
             onRefreshFaqs={() => fetchAllData(currentUser.id)}
-          />
-        )}
-
-        {renderedTab === "query" && (
-          <QueryForum
-            queries={queries}
-            currentUser={currentUser}
             onRefreshQueries={handleRefreshQueriesOnly}
-            onNavigateToFAQ={() => setActiveTab("faq")}
-            initialNewQueryText={preseededNewQueryText}
-            selectedThreadIdParam={selectedThreadIdParam}
-            onClearThreadParam={() => setActiveTab("query")}
-          />
-        )}
-
-        {renderedTab === "yaksha" && (
-          <YakshaChat
-            currentUser={currentUser}
-            onNavigate={setActiveTab}
-          />
-        )}
-
-        {renderedTab === "dashboard" && (
-          <Dashboard />
-        )}
-
-        {renderedTab === "admin" && (
-          <AdminPanel
+            onUserSwitch={handleUserSwitch}
             allUsers={allUsers}
-            onRefreshUsers={() => fetchAllData(currentUser.id)}
-            currentUser={currentUser}
           />
+        ) : (
+          <>
+            {renderedTab === "landing" && (
+              <Landing
+                onNavigate={setActiveTab}
+                totalFAQsCount={faqs.length}
+                totalUnresolvedCount={queries.filter(q => q.status !== "resolved").length}
+              />
+            )}
+
+            {renderedTab === "faq" && (
+              <FAQExplorer
+                faqs={faqs}
+                currentUser={currentUser}
+                onVote={handleFAQVote}
+                onRefreshFaqs={() => fetchAllData(currentUser.id)}
+              />
+            )}
+
+            {renderedTab === "query" && (
+              <QueryForum
+                queries={queries}
+                currentUser={currentUser}
+                onRefreshQueries={handleRefreshQueriesOnly}
+                onNavigateToFAQ={() => setActiveTab("faq")}
+                initialNewQueryText={preseededNewQueryText}
+                selectedThreadIdParam={selectedThreadIdParam}
+                onClearThreadParam={() => setActiveTab("query")}
+              />
+            )}
+
+            {renderedTab === "yaksha" && (
+              <YakshaChat
+                currentUser={currentUser}
+                onNavigate={setActiveTab}
+              />
+            )}
+
+            {renderedTab === "dashboard" && (
+              <Dashboard />
+            )}
+
+            {renderedTab === "admin" && (
+              <AdminPanel
+                allUsers={allUsers}
+                onRefreshUsers={() => fetchAllData(currentUser.id)}
+                currentUser={currentUser}
+              />
+            )}
+          </>
         )}
 
       </main>

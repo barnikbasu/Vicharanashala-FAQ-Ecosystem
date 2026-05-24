@@ -9,6 +9,7 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { dbInstance } from "./server-db";
+import { Query } from "./src/types";
 
 dotenv.config();
 
@@ -39,6 +40,90 @@ function getGeminiClient(): GoogleGenAI | null {
 }
 
 // Helper to perform semantic similarity ranking using simple token TF-IDF or Jaccard
+function cosineSimilarity(vecA: number[], vecB: number[]): number {
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  const maxLength = Math.min(vecA.length, vecB.length);
+  for (let i = 0; i < maxLength; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    normA += vecA[i] * vecA[i];
+    normB += vecB[i] * vecB[i];
+  }
+  return normA > 0 && normB > 0 ? dotProduct / (Math.sqrt(normA) * Math.sqrt(normB)) : 0;
+}
+
+async function findRelevantFAQContextSemantic(queryText: string, topN: number = 3): Promise<{ text: string; source: string; score: number }[]> {
+  const gemini = getGeminiClient();
+  if (!gemini) {
+    return findRelevantFAQContext(queryText, topN);
+  }
+
+  try {
+    const queryEmbedResult = await gemini.models.embedContent({
+      model: "gemini-embedding-2-preview",
+      contents: queryText,
+    }) as any;
+    const queryVector = queryEmbedResult.embedding?.values || queryEmbedResult.embeddings?.[0]?.values;
+    if (!queryVector) return findRelevantFAQContext(queryText, topN);
+
+    const faqs = dbInstance.getFAQs();
+    const solvedQueries = dbInstance.getQueries().filter(q => q.status === "resolved");
+    const candidates: { text: string; source: string; score: number }[] = [];
+
+    // Embed FAQs dynamically
+    for (const f of faqs) {
+      const faqText = `Question: ${f.question}\nAnswer: ${f.answer}\nCategory: ${f.category}`;
+      const embedResult = await gemini.models.embedContent({
+        model: "gemini-embedding-2-preview",
+        contents: faqText,
+      }).catch(() => null) as any;
+      const vector = embedResult?.embedding?.values || embedResult?.embeddings?.[0]?.values;
+      let score = 0;
+      if (vector) {
+        score = cosineSimilarity(queryVector, vector);
+      } else {
+        // Fallback lexical score
+        const localScore = findRelevantFAQContext(f.question, 1)[0]?.score || 0.1;
+        score = localScore;
+      }
+      candidates.push({
+        text: faqText,
+        source: `FAQ-ID: ${f.id} (${f.question})`,
+        score: score + 0.05 // boost official FAQs
+      });
+    }
+
+    // Embed solved queries dynamically
+    for (const q of solvedQueries) {
+      const qText = `Solved Query: ${q.title}\nResolved Discussion: ${q.answers.filter(a => a.isMentorVerified).map(a => a.content).join(" ")}`;
+      const embedResult = await gemini.models.embedContent({
+        model: "gemini-embedding-2-preview",
+        contents: qText,
+      }).catch(() => null) as any;
+      const vector = embedResult?.embedding?.values || embedResult?.embeddings?.[0]?.values;
+      let score = 0;
+      if (vector) {
+        score = cosineSimilarity(queryVector, vector);
+      } else {
+        const localScore = findRelevantFAQContext(q.title, 1)[0]?.score || 0.1;
+        score = localScore;
+      }
+      candidates.push({
+        text: qText,
+        source: `SolvedQuery-ID: ${q.id} (${q.title})`,
+        score
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return candidates.slice(0, topN);
+  } catch (err) {
+    console.warn("Semantic embed failed, falling back to lexical term matching.", err);
+    return findRelevantFAQContext(queryText, topN);
+  }
+}
+
 function findRelevantFAQContext(queryText: string, topN: number = 2): { text: string; source: string; score: number }[] {
   const faqs = dbInstance.getFAQs();
   const solvedQueries = dbInstance.getQueries().filter(q => q.status === "resolved");
@@ -142,6 +227,62 @@ app.post("/api/faqs/:id/vote", (req, res) => {
   res.json({ success: true });
 });
 
+app.post("/api/faqs/:id/update", (req, res) => {
+  const { question, answer, category, tags, videoUrl, editedBy } = req.body;
+  const updated = dbInstance.updateFAQ(req.params.id, { question, answer, category, tags, videoUrl }, editedBy || "Admin");
+  if (updated) {
+    res.json({ success: true, faq: updated });
+  } else {
+    res.status(404).json({ success: false, message: "FAQ not found" });
+  }
+});
+
+app.post("/api/faqs/:id/verify", (req, res) => {
+  const { verifiedBy } = req.body;
+  const updated = dbInstance.verifyFAQ(req.params.id, verifiedBy || "Sudarshan Iyengar (Admin)");
+  if (updated) {
+    res.json({ success: true, faq: updated });
+  } else {
+    res.status(404).json({ success: false, message: "FAQ not found" });
+  }
+});
+
+app.post("/api/queries/merge", (req, res) => {
+  const { primaryId, secondaryId, mergedBy } = req.body;
+  const updated = dbInstance.mergeQueries(primaryId, secondaryId, mergedBy || "Mentor");
+  if (updated) {
+    res.json({ success: true, query: updated });
+  } else {
+    res.status(404).json({ success: false, message: "Queries not found or mismatched" });
+  }
+});
+
+app.post("/api/prompt-config/webhooks", (req, res) => {
+  const { name, url, events, active } = req.body;
+  const config = dbInstance.getPromptConfig();
+  config.webhooks = config.webhooks || [];
+  const newHook = {
+    id: `web-${Date.now()}`,
+    name,
+    url,
+    events: events || ["new_query", "escalated", "faq_update", "critical_unresolved"],
+    active: active !== false,
+    createdAt: new Date().toISOString()
+  };
+  config.webhooks.push(newHook);
+  dbInstance.save();
+  dbInstance.createAuditLog("WEBHOOK_ADD", "Admin", `Configured new webhook alert receiver: ${name}`);
+  res.json({ success: true, webhooks: config.webhooks });
+});
+
+app.delete("/api/prompt-config/webhooks/:id", (req, res) => {
+  const config = dbInstance.getPromptConfig();
+  config.webhooks = (config.webhooks || []).filter((w: any) => w.id !== req.params.id);
+  dbInstance.save();
+  dbInstance.createAuditLog("WEBHOOK_DELETE", "Admin", `Removed webhook receiver ID: ${req.params.id}`);
+  res.json({ success: true, webhooks: config.webhooks });
+});
+
 // 3. Queries Forum
 app.get("/api/queries", (req, res) => {
   res.json({ success: true, queries: dbInstance.getQueries() });
@@ -158,13 +299,56 @@ app.get("/api/queries/:id", (req, res) => {
 });
 
 app.post("/api/queries", (req, res) => {
-  const { title, description, authorId, tags, difficulty } = req.body;
+  const { title, description, authorId, tags, difficulty, urgency, isAnonymous } = req.body;
   if (!title || !description || !authorId) {
     return res.status(400).json({ success: false, message: "Missing title, description, or authorId" });
   }
   try {
-    const q = dbInstance.createQuery(title, description, authorId, tags || [], difficulty || "easy");
-    dbInstance.createAuditLog("QUERY_RAISE", q.author.name, `Raised a new community query: "${title}"`);
+    // Implement auto-merging query systems
+    const openQueries = dbInstance.getQueries().filter(oq => oq.status === "open" || oq.status === "assigned");
+    let duplicateOf: Query | null = null;
+    
+    // Check Jaccard overlap similarity
+    const newTerms = new Set(`${title} ${description}`.toLowerCase().split(/\W+/).filter(t => t.length > 3));
+    
+    for (const oq of openQueries) {
+      const oqTerms = new Set(`${oq.title} ${oq.description}`.toLowerCase().split(/\W+/).filter(t => t.length > 3));
+      let intersection = 0;
+      newTerms.forEach(t => {
+        if (oqTerms.has(t)) intersection++;
+      });
+      const union = new Set([...newTerms, ...oqTerms]).size;
+      const jaccardSim = union > 0 ? (intersection / union) : 0;
+      
+      const isTitleContained = oq.title.toLowerCase().includes(title.toLowerCase()) || title.toLowerCase().includes(oq.title.toLowerCase());
+
+      if (jaccardSim >= 0.60 || (isTitleContained && title.length > 10)) {
+        duplicateOf = oq;
+        break;
+      }
+    }
+
+    const q = dbInstance.createQuery(
+      title,
+      description,
+      authorId,
+      tags || [],
+      difficulty || "easy",
+      urgency || "medium",
+      !!isAnonymous
+    );
+
+    if (duplicateOf) {
+      dbInstance.mergeQueries(duplicateOf.id, q.id, "AI Auto-Merging System");
+      return res.json({
+        success: true,
+        query: q,
+        autoMerged: true,
+        mergedIntoId: duplicateOf.id,
+        mergedIntoTitle: duplicateOf.title
+      });
+    }
+
     res.json({ success: true, query: q });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -404,15 +588,15 @@ app.post("/api/ai/chatbot", async (req, res) => {
 
   const latestMessage = messages[messages.length - 1]?.text || "";
 
-  // 1. Context retrieval
-  const matchingContext = findRelevantFAQContext(latestMessage, 3);
+  // 1. Context retrieval (using real semantic embeddings fallback index)
+  const matchingContext = await findRelevantFAQContextSemantic(latestMessage, 3);
   const contextBlock = matchingContext.length > 0 
     ? `### RELEVANT VICHARANASHALA FAQ & RESOLVED TICKETS:
 ${matchingContext.map((c, i) => `[Source ${i + 1} - ${c.source}]:\n${c.text}`).join("\n\n--- \n")}`
     : "No highly matching systemic records found for this query. Provide a general friendly response about Vicharanashala and guide them to raise a query if it exceeds your knowledge.";
 
   const systemConfig = dbInstance.getPromptConfig();
-  const instruction = `${systemConfig.systemInstruction}\n\nCURRENT RETRIEVED SYSTEM CONTEXT:\n${contextBlock}\n\nEnsure you cite any [Source X] context you use clearly.`;
+  const instruction = `${systemConfig.systemInstruction}\n\nCURRENT RETRIEVED SYSTEM CONTEXT:\n${contextBlock}\n\nEnsure you cite any [Source X] context you use clearly. If confidence is low, suggest user escalates to a live mentor in the Chat interface.`;
 
   const gemini = getGeminiClient();
 
@@ -441,14 +625,12 @@ How to activate full intelligence:
   }
 
   try {
-    // Map existing history to Gemini contents form { role: 'user'|'model', parts: [{ text: ... }] }
-    // Take last 6 messages to stay under limits and protect performance
     const historyBuffer = messages.slice(-6).map(m => ({
       role: m.sender === "user" ? "user" as const : "model" as const,
       parts: [{ text: m.text }]
     }));
 
-    // Generate output with dynamic instructions
+    // Generate output with dynamic instructions using the correct API client method
     const response = await gemini.models.generateContent({
       model: isMini ? "gemini-3.5-flash" : systemConfig.model,
       contents: historyBuffer,

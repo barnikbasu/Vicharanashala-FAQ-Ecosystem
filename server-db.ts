@@ -295,14 +295,66 @@ export class ServerDB {
         const parsed = JSON.parse(fileContent);
         this.data = {
           users: parsed.users || MOCK_USERS,
-          faqs: parsed.faqs || INITIAL_FAQS,
-          queries: parsed.queries || INITIAL_QUERIES,
-          promptConfig: parsed.promptConfig || INITIAL_SYSTEM_PROMPTS,
+          faqs: (parsed.faqs || INITIAL_FAQS).map((f: any) => ({
+            ...f,
+            version: f.version || 1,
+            verificationStatus: f.verificationStatus || "verified",
+            lastVerifiedBy: f.lastVerifiedBy || "Sudarshan Iyengar (Admin)",
+            lastVerifiedAt: f.lastVerifiedAt || f.createdAt || new Date().toISOString(),
+            editHistory: f.editHistory || []
+          })),
+          queries: (parsed.queries || INITIAL_QUERIES).map((q: any) => ({
+            ...q,
+            urgency: q.urgency || "medium",
+            isAnonymous: q.isAnonymous || false,
+            additionalParticipants: q.additionalParticipants || []
+          })),
+          promptConfig: {
+            ...INITIAL_SYSTEM_PROMPTS,
+            ...(parsed.promptConfig || {}),
+            webhooks: parsed.promptConfig?.webhooks || [
+              {
+                id: "web-1",
+                name: "Slack Critical Sync",
+                url: "https://hooks.slack.com/services/mock/target-channel",
+                events: ["escalated", "critical_unresolved"],
+                active: true,
+                createdAt: "2026-05-23T12:00:00Z"
+              }
+            ]
+          },
           auditLogs: parsed.auditLogs || INITIAL_AUDIT_LOGS,
           notifications: parsed.notifications || INITIAL_NOTIFICATIONS
         };
-        console.log("Mock database successfully loaded from json filesystem!");
+        console.log("Mock database successfully loaded & migrated from JSON file!");
       } else {
+        this.data.faqs = this.data.faqs.map(f => ({
+          ...f,
+          version: 1,
+          verificationStatus: "verified",
+          lastVerifiedBy: "Sudarshan Iyengar (Admin)",
+          lastVerifiedAt: f.createdAt,
+          editHistory: []
+        }));
+        this.data.queries = this.data.queries.map(q => ({
+          ...q,
+          urgency: "medium",
+          isAnonymous: false,
+          additionalParticipants: []
+        }));
+        this.data.promptConfig = {
+          ...INITIAL_SYSTEM_PROMPTS,
+          webhooks: [
+            {
+              id: "web-1",
+              name: "Slack Critical Sync",
+              url: "https://hooks.slack.com/services/mock/target-channel",
+              events: ["escalated", "critical_unresolved"],
+              active: true,
+              createdAt: "2026-05-23T12:00:00Z"
+            }
+          ]
+        };
         this.save();
       }
     } catch (e) {
@@ -310,7 +362,7 @@ export class ServerDB {
     }
   }
 
-  private save() {
+  save() {
     try {
       fs.writeFileSync(DB_FILE_PATH, JSON.stringify(this.data, null, 2), "utf-8");
     } catch (e) {
@@ -356,11 +408,63 @@ export class ServerDB {
       views: 0,
       helpfulCount: 0,
       unhelpfulCount: 0,
+      version: 1,
+      verificationStatus: "verified",
+      lastVerifiedBy: "Sudarshan Iyengar (Admin)",
+      lastVerifiedAt: new Date().toISOString(),
+      editHistory: [],
       createdAt: new Date().toISOString()
     };
     this.data.faqs.push(newFaq);
+    this.createAuditLog("FAQ_CREATE", "Sudarshan Iyengar (Admin)", `Created FAQ: "${newFaq.question}"`);
+    this.triggerWebhook("new_query", { title: newFaq.question, type: "faq" });
     this.save();
     return newFaq;
+  }
+
+  updateFAQ(id: string, updatedFields: Partial<FAQ>, editedBy: string): FAQ | undefined {
+    const faq = this.data.faqs.find(f => f.id === id);
+    if (faq) {
+      const oldVersion = faq.version || 1;
+      const nextVersion = oldVersion + 1;
+      
+      const historyEntry = {
+        version: oldVersion,
+        editedAt: new Date().toISOString(),
+        editedBy,
+        changeSummary: updatedFields.question !== faq.question ? "Updated FAQ question title" : "Refreshed FAQ body details"
+      };
+
+      faq.editHistory = faq.editHistory || [];
+      faq.editHistory.push(historyEntry);
+
+      faq.question = updatedFields.question ?? faq.question;
+      faq.answer = updatedFields.answer ?? faq.answer;
+      faq.category = updatedFields.category ?? faq.category;
+      faq.tags = updatedFields.tags ?? faq.tags;
+      faq.videoUrl = updatedFields.videoUrl ?? faq.videoUrl;
+      faq.version = nextVersion;
+      faq.lastVerifiedBy = editedBy;
+      faq.lastVerifiedAt = new Date().toISOString();
+      faq.verificationStatus = "verified";
+
+      this.createAuditLog("FAQ_UPDATE", editedBy, `Updated FAQ '${faq.question}' to version ${nextVersion}`);
+      this.triggerWebhook("faq_update", { faqId: faq.id, title: faq.question });
+      this.save();
+    }
+    return faq;
+  }
+
+  verifyFAQ(id: string, verifiedBy: string): FAQ | undefined {
+    const faq = this.data.faqs.find(f => f.id === id);
+    if (faq) {
+      faq.lastVerifiedBy = verifiedBy;
+      faq.lastVerifiedAt = new Date().toISOString();
+      faq.verificationStatus = "verified";
+      this.createAuditLog("FAQ_VERIFY", verifiedBy, `Verified FAQ content validity: '${faq.question}'`);
+      this.save();
+    }
+    return faq;
   }
 
   voteFAQ(id: string, helpful: boolean) {
@@ -389,7 +493,15 @@ export class ServerDB {
     return this.data.queries.find(q => q.id === id);
   }
 
-  createQuery(title: string, description: string, authorId: string, tags: string[], difficulty: "easy" | "medium" | "hard" = "easy"): Query {
+  createQuery(
+    title: string,
+    description: string,
+    authorId: string,
+    tags: string[],
+    difficulty: "easy" | "medium" | "hard" = "easy",
+    urgency: "low" | "medium" | "high" | "critical" = "medium",
+    isAnonymous: boolean = false
+  ): Query {
     const author = this.getUserById(authorId) || MOCK_USERS[0];
     const newQuery: Query = {
       id: `q-${Date.now()}`,
@@ -397,19 +509,90 @@ export class ServerDB {
       description,
       status: "open",
       difficulty,
+      urgency,
       tags,
       author,
+      isAnonymous,
       createdAt: new Date().toISOString(),
       answers: [],
       upvotes: [],
-      views: 1
+      views: 1,
+      additionalParticipants: []
     };
     this.data.queries.unshift(newQuery);
     
     // Auto points for raising a query
     this.updateUserPoints(authorId, 10);
+    this.createAuditLog("QUERY_RAISE", isAnonymous ? "Anonymous Intern" : author.name, `Raised query: "${title}" [Urgency: ${urgency}]`);
+    this.triggerWebhook("new_query", { title, urgency, isAnonymous });
     this.save();
     return newQuery;
+  }
+
+  mergeQueries(primaryId: string, secondaryId: string, mergedBy: string = "AI Auto-Merging System"): Query | undefined {
+    const primary = this.data.queries.find(q => q.id === primaryId);
+    const secondary = this.data.queries.find(q => q.id === secondaryId);
+    
+    if (primary && secondary) {
+      if (primaryId === secondaryId) return primary;
+
+      primary.additionalParticipants = primary.additionalParticipants || [];
+      if (!primary.additionalParticipants.includes(secondary.author.id)) {
+        primary.additionalParticipants.push(secondary.author.id);
+      }
+      if (secondary.additionalParticipants) {
+        secondary.additionalParticipants.forEach(pId => {
+          if (!primary.additionalParticipants!.includes(pId)) {
+            primary.additionalParticipants!.push(pId);
+          }
+        });
+      }
+
+      secondary.duplicateOfId = primaryId;
+      secondary.status = "closed";
+
+      this.createNotification(
+        secondary.author.id,
+        "Query Merged 🖇️",
+        `Your query "${secondary.title}" was merged into "${primary.title}". Live discussions will run here.`,
+        "system",
+        `/query/${primaryId}`
+      );
+
+      this.createAuditLog(
+        "QUERY_MERGE",
+        mergedBy,
+        `Merged query '${secondary.title}' into parent query '${primary.title}'`
+      );
+
+      this.save();
+    }
+    return primary;
+  }
+
+  triggerWebhook(event: string, payload: any) {
+    const webhooks = this.data.promptConfig.webhooks || [];
+    const activeHooks = webhooks.filter(w => w.active && w.events.includes(event));
+    activeHooks.forEach(hook => {
+      console.log(`[Webhook alert trigger] Dispatching "${event}" to: ${hook.url}`);
+      try {
+        fetch(hook.url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system: "Vicharanashala Institutional OS",
+            event,
+            timestamp: new Date().toISOString(),
+            data: payload
+          })
+        }).catch(err => {
+          console.warn(`Webhook ${hook.url} unreachable, fallback simulated.`, err.message);
+        });
+      } catch (e: any) {
+        console.warn(`Webhook firing failed silently: ${e.message}`);
+      }
+      this.createAuditLog("WEBHOOK_FIRE", "System alert", `Dispatched webhook event '${event}' to endpoint '${hook.name}'`);
+    });
   }
 
   updateQueryStatus(id: string, status: Query["status"]) {
@@ -418,10 +601,8 @@ export class ServerDB {
       query.status = status;
       if (status === "resolved") {
         query.resolvedAt = new Date().toISOString();
-        // award author points
         this.updateUserPoints(query.author.id, 20);
         
-        // Push notification of success
         this.createNotification(
           query.author.id,
           "Query Resolved ✅",
@@ -429,6 +610,20 @@ export class ServerDB {
           "query_solved",
           `/query/${query.id}`
         );
+
+        // Notify additional linked users
+        if (query.additionalParticipants && query.additionalParticipants.length > 0) {
+          query.additionalParticipants.forEach(pId => {
+            this.createNotification(
+              pId,
+              "Merged Query Resolved ✅",
+              `The merged query regarding '${query.title.substring(0, 35)}...' has been resolved!`,
+              "query_solved",
+              `/query/${query.id}`
+            );
+            this.updateUserPoints(pId, 10);
+          });
+        }
       }
       this.save();
     }

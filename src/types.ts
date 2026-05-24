@@ -35,8 +35,10 @@ export interface Query {
   description: string;
   status: "open" | "assigned" | "resolved" | "closed";
   difficulty: "easy" | "medium" | "hard";
+  urgency?: "low" | "medium" | "high" | "critical"; // Urgency labelling
   tags: string[];
   author: User;
+  isAnonymous?: boolean; // Anonymous query system
   assignedMentor?: User;
   createdAt: string;
   resolvedAt?: string;
@@ -45,6 +47,7 @@ export interface Query {
   views: number;
   aiSummary?: string;
   duplicateOfId?: string; // Links to another Query or FAQ
+  additionalParticipants?: string[]; // linked users in merged thread
 }
 
 export interface FAQ {
@@ -58,6 +61,12 @@ export interface FAQ {
   unhelpfulCount: number;
   sourceQueryId?: string;
   createdAt: string;
+  videoUrl?: string; // Loom or YouTube URL embed
+  version?: number; // Versioning system
+  lastVerifiedBy?: string; // e.g., @SudarshanIyengar
+  lastVerifiedAt?: string;
+  verificationStatus?: "verified" | "needs_review" | "draft";
+  editHistory?: { version: number; editedAt: string; editedBy: string; changeSummary: string }[];
 }
 
 export interface Notification {
@@ -80,12 +89,22 @@ export interface ChatMessage {
   confidence?: number;
 }
 
+export interface WebhookConfig {
+  id: string;
+  name: string;
+  url: string;
+  events: string[]; // "new_query", "escalated", "faq_update", "critical_unresolved"
+  active: boolean;
+  createdAt: string;
+}
+
 export interface SystemPromptConfig {
   id: string;
   systemInstruction: string;
   temperature: number;
   model: string;
   updatedAt: string;
+  webhooks?: WebhookConfig[];
 }
 
 export interface AuditLog {

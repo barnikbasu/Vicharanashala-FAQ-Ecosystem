@@ -929,9 +929,23 @@ export default function InternFlow({
               </div>
 
               {queryFormMsg && (
-                <p className="text-[10px] font-mono text-sky-450 bg-sky-950/20 p-2 rounded-lg border border-sky-900/40">
-                  {queryFormMsg}
-                </p>
+                <div className="p-3.5 rounded-xl bg-sky-950/40 border border-sky-900/60 text-[11px] leading-relaxed font-sans space-y-2">
+                  <p className="font-mono text-sky-400">
+                    {queryFormMsg}
+                  </p>
+                  {queryFormMsg.includes("Success") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveStep("recovered-answers");
+                        setQueryFormMsg("");
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-mono font-bold uppercase tracking-wider transition-colors shadow-md"
+                    >
+                      <span>Track in Recovered Answers →</span>
+                    </button>
+                  )}
+                </div>
               )}
 
               <button
